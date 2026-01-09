@@ -2,9 +2,9 @@
 # from astrbot.core.provider.provider import EmbeddingProvider
 # from astrbot.core.config.default import CONFIG_METADATA_2
 # from astrbot.core.provider.entities import ProviderType
-from astrbot.api.event import filter, AstrMessageEvent
-from astrbot.api.star import Context, Star, register
-from astrbot.api import AstrBotConfig, logger
+# from astrbot.api.event import filter, AstrMessageEvent
+# from astrbot.api.star import Context, Star, register
+# from astrbot.api import AstrBotConfig, logger
 # from astrbot.api.star import StarTools
 # from astrbot.api import AstrBotConfig
 # from astrbot.api import logger
@@ -54,11 +54,17 @@ from astrbot.api import AstrBotConfig, logger
 #     def get_dim(self) -> int:
 #         return 384
 
+from astrbot.api.event import filter, AstrMessageEvent
+from astrbot.api.star import Context, Star, register
+from astrbot.api import AstrBotConfig, logger
+
 @register("STEmbedding", "Lishining", "我的STEmbedding", "1.0.0")
 class STEmbedding(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
+        logger.info("STEmbedding 插件已加载")
 
     @filter.command("STEmbedding")
     async def stembedding(self, event: AstrMessageEvent):
-        yield event.plain_result("你好")
+        """STEmbedding 命令处理器"""
+        yield event.plain_result("你好，这是 STEmbedding 插件")
