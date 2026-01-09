@@ -4,6 +4,7 @@
 # from astrbot.core.provider.entities import ProviderType
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
+from astrbot.api import AstrBotConfig, logger
 # from astrbot.api.star import StarTools
 # from astrbot.api import AstrBotConfig
 # from astrbot.api import logger
@@ -55,7 +56,7 @@ from astrbot.api.star import Context, Star, register
 
 @register("STEmbedding", "Lishining", "我的STEmbedding", "1.0.0")
 class STEmbedding(Star):
-    def __init__(self, context: Context):
+    def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
 
     @filter.command("STEmbedding")
