@@ -51,3 +51,8 @@ class STEmbeddingProvider(EmbeddingProvider):
 
     def get_dim(self) -> int:
         return 384
+
+@register("STEmbedding", "Lishining", "STEmbedding", "1.0.0")
+class STEmbedding(Star):
+    def __init__(self, context: Context):
+        super().__init__(context)
