@@ -2,6 +2,7 @@ from astrbot.core.provider.register import register_provider_adapter
 from astrbot.core.provider.provider import EmbeddingProvider
 from astrbot.core.config.default import CONFIG_METADATA_2
 from astrbot.core.provider.entities import ProviderType
+from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api.star import StarTools
 from astrbot.api import AstrBotConfig
@@ -56,3 +57,8 @@ class STEmbeddingProvider(EmbeddingProvider):
 class STEmbedding(Star):
     def __init__(self, context: Context):
         super().__init__(context)
+
+
+    @filter.command("STEmbedding")
+    async def stembedding(self, event: AstrMessageEvent):
+        yield event.plain_result("你好")
