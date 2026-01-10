@@ -5,8 +5,8 @@ from astrbot.core.config.default import CONFIG_METADATA_2
 from astrbot.core.provider.entities import ProviderType
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
-from astrbot.api import AstrBotConfig, logger
 from astrbot.api.star import StarTools
+from astrbot.api import logger
 import os
 
 try:
@@ -20,11 +20,9 @@ except ImportError:
 class STEmbedding(Star):
     # 类属性
     _registered = False
-    _adapter_cls = None
 
-    def __init__(self, context: Context, config: AstrBotConfig):
+    def __init__(self, context: Context):
         super().__init__(context)
-        self.config = config
 
     @classmethod
     def _register_config(cls):
@@ -93,9 +91,7 @@ class STEmbedding(Star):
                 return self.provider_config.get("embedding_dimensions", 384)
 
         # 保存适配器类的引用
-        cls._adapter_cls = STEmbeddingProvider
         cls._registered = True
-        logger.info("[STEmbedding] 配置和适配器已注册")
 
     @classmethod
     def _unregister_config(cls):
@@ -143,7 +139,6 @@ class STEmbedding(Star):
             logger.warning(f"[STEmbedding] 从注册表移除时出错: {e}")
 
         # 4. 重置状态
-        cls._adapter_cls = None
         cls._registered = False
         logger.info("[STEmbedding] 配置清理完成")
 
@@ -158,24 +153,10 @@ class STEmbedding(Star):
         logger.info(f"provider_cls_map:{list(provider_cls_map.keys())}")
 
     async def initialize(self):
-        """插件初始化方法"""
-        logger.info("[STEmbedding] 插件正在初始化...")
-
-        # 检查是否已经有STEmbedding配置
-        provider_configs = self.config.get("provider_group", {}).get("provider", [])
-        st_config_exists = any(
-            cfg.get("type") == "STEmbedding"
-            for cfg in provider_configs
-        )
-
-        if not st_config_exists:
-            logger.info("[STEmbedding] 未检测到STEmbedding配置，正在注册...")
-            self._register_config()
-        else:
-            logger.info("[STEmbedding] 已检测到STEmbedding配置，跳过注册")
-            STEmbedding._registered = True
-
-        logger.info("[STEmbedding] 插件初始化完成")
+        """插件初始化方法 - 注册配置"""
+        logger.info("[STEmbedding] 插件正在初始化，注册配置...")
+        self._register_config()
+        logger.info("[STEmbedding] 配置和适配器已注册")
 
     async def terminate(self):
         """插件终止方法 - 清理所有注册的配置"""
@@ -188,13 +169,8 @@ class STEmbedding(Star):
             # 遍历所有已注册的适配器，检查STEmbedding是否还被其他适配器使用
             for pm in provider_registry:
                 if hasattr(pm, 'type') and pm.type == "STEmbedding":
-                    # 如果找到STEmbedding适配器，检查其cls_type是否与我们注册的相同
-                    if self._adapter_cls and pm.cls_type == self._adapter_cls:
-                        logger.info("[STEmbedding] 检测到当前插件注册的适配器，将进行清理")
-                        st_in_use = True
-                    else:
-                        logger.warning("[STEmbedding] 检测到其他来源的STEmbedding适配器，跳过清理")
-                        return
+                    # 如果找到STEmbedding适配器
+                    st_in_use = True
 
             if not st_in_use and not self._registered:
                 logger.info("[STEmbedding] 适配器未注册，无需清理")
