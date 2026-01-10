@@ -63,7 +63,7 @@ class STEmbedding(Star):
 
         if not st_in_use:
             try:
-                # 保持适配器类在方法内部定义（不变）
+                # 保持适配器类在方法内部定义,为了防止ASTRbot的插件的类别检测检测到STEmbeddingProvider,然后导致插件无法动态导入
                 @register_provider_adapter(
                     "STEmbedding",
                     "Sentence Transformers Embedding 提供商适配器",
@@ -75,47 +75,80 @@ class STEmbedding(Star):
                         self.provider_config = provider_config
                         self.provider_settings = provider_settings
 
-                        # 处理路径：如果是相对路径，则基于data_dir；如果是绝对路径，直接使用
-                        base_path = self.provider_config.get("STEmbedding_path", "./paraphrase-multilingual-MiniLM-L12-v2/")
+                        # 处理路径：如果是相对路径，则基于 data_dir；如果是绝对路径，直接使用
+                        base_path = self.provider_config.get(
+                            "STEmbedding_path",
+                            "./paraphrase-multilingual-MiniLM-L12-v2/"
+                        )
                         if os.path.isabs(base_path):
                             self.STEmbedding_path = base_path
                         else:
-                            self.STEmbedding_path = os.path.join(str(StarTools.get_data_dir()), base_path)
+                            self.STEmbedding_path = os.path.join(
+                                str(StarTools.get_data_dir()), base_path
+                            )
 
-                        logger.info(f"[STEmbedding] 正在加载模型: {self.STEmbedding_path}")
-                        try:
-                            self.model = SentenceTransformer(self.STEmbedding_path)
-                            logger.info("[STEmbedding] 模型加载成功")
-                        except Exception as e:
-                            logger.error(f"[STEmbedding] 模型加载失败: {e}", exc_info=True)
-                            raise
+                        # ⚠️ 关键点：不在 __init__ 中加载模型
+                        self.model = None
+                        self._model_lock = asyncio.Lock()
+
+                        logger.info(
+                            f"[STEmbedding] Provider 初始化完成，模型将延迟加载: {self.STEmbedding_path}"
+                        )
+
+                    async def _ensure_model_loaded(self) -> None:
+                        """确保模型已加载（Lazy Loading，线程安全）"""
+                        if self.model is not None:
+                            return
+
+                        async with self._model_lock:
+                            # Double Check，防止并发重复加载
+                            if self.model is not None:
+                                return
+
+                            loop = asyncio.get_running_loop()
+                            logger.info(f"[STEmbedding] 开始加载模型: {self.STEmbedding_path}")
+
+                            try:
+                                self.model = await loop.run_in_executor(
+                                    None, SentenceTransformer, self.STEmbedding_path
+                                )
+                                logger.info("[STEmbedding] 模型加载成功")
+                            except Exception as e:
+                                logger.error(
+                                    f"[STEmbedding] 模型加载失败: {e}", exc_info=True
+                                )
+                                raise
 
                     async def get_embedding(self, text: str) -> list[float]:
                         """获取单个文本的嵌入向量 - 异步执行"""
+                        await self._ensure_model_loaded()
+
                         loop = asyncio.get_running_loop()
                         try:
-                            # 在线程池中执行同步的模型推理
                             embedding = await loop.run_in_executor(
                                 None, self.model.encode, text
                             )
-                            # 确保返回的是Python list而不是numpy array
                             return embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
                         except Exception as e:
-                            logger.error(f"[STEmbedding] 获取嵌入向量失败: {e}", exc_info=True)
+                            logger.error(
+                                f"[STEmbedding] 获取嵌入向量失败: {e}", exc_info=True
+                            )
                             raise
 
                     async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
                         """获取多个文本的嵌入向量 - 异步执行"""
+                        await self._ensure_model_loaded()
+
                         loop = asyncio.get_running_loop()
                         try:
-                            # 在线程池中执行同步的模型推理
                             embeddings = await loop.run_in_executor(
                                 None, self.model.encode, texts
                             )
-                            # 确保返回的是Python list而不是numpy array
                             return embeddings.tolist() if hasattr(embeddings, "tolist") else list(embeddings)
                         except Exception as e:
-                            logger.error(f"[STEmbedding] 获取批量嵌入向量失败: {e}", exc_info=True)
+                            logger.error(
+                                f"[STEmbedding] 获取批量嵌入向量失败: {e}", exc_info=True
+                            )
                             raise
 
                     def get_dim(self) -> int:
@@ -169,7 +202,6 @@ class STEmbedding(Star):
         """插件初始化方法 - 注册配置"""
         if not self.available:
             logger.warning("[STEmbedding] sentence-transformers库未安装，插件功能受限")
-            yield "STEmbedding插件功能受限，请安装sentence-transformers库：pip install sentence-transformers"
             return
 
         logger.info("[STEmbedding] 插件正在初始化，注册配置...")
