@@ -224,8 +224,6 @@ logger.setLevel("DEBUG")
 ## 支持与联系
 
 - 提交 Issue: [GitHub Issues](https://github.com/your-repo/astrbot-stembedding/issues)
-- 文档: [项目 Wiki](https://github.com/your-repo/astrbot-stembedding/wiki)
-- 讨论: [GitHub Discussions](https://github.com/your-repo/astrbot-stembedding/discussions)
 
 ## 致谢
 
