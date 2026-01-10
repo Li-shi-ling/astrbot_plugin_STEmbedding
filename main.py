@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 from astrbot.api import AstrBotConfig, logger
@@ -12,11 +13,14 @@ from astrbot.core.provider.register import (
     register_provider_adapter,
 )
 
+# 延迟导入检查，不立即抛出异常
+sentence_transformers_available = False
 try:
     from sentence_transformers import SentenceTransformer
+
+    sentence_transformers_available = True
 except ImportError:
-    logger.error("未检测到 sentence-transformers 库, 请使用pip install sentence-transformers安装")
-    raise ImportError("未检测到 sentence-transformers 库, 请使用pip install sentence-transformers安装")
+    logger.warning("未检测到 sentence-transformers 库，插件功能将受限")
 
 
 @register("STEmbedding", "Lishining", "我的STEmbedding", "1.0.0")
@@ -26,6 +30,8 @@ class STEmbedding(Star):
 
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
+        self.model = None
+        self.available = sentence_transformers_available
 
     @classmethod
     def _register_config(cls):
@@ -53,12 +59,11 @@ class STEmbedding(Star):
         st_in_use = False
         for pm in provider_registry:
             if hasattr(pm, "type") and pm.type == "STEmbedding":
-                # 如果找到STEmbedding适配器
                 st_in_use = True
 
         if not st_in_use:
             try:
-                # 注册适配器
+                # 保持适配器类在方法内部定义（不变）
                 @register_provider_adapter(
                     "STEmbedding",
                     "Sentence Transformers Embedding 提供商适配器",
@@ -80,28 +85,46 @@ class STEmbedding(Star):
                         logger.info(f"[STEmbedding] 正在加载模型: {self.STEmbedding_path}")
                         try:
                             self.model = SentenceTransformer(self.STEmbedding_path)
-                            logger.info(f"[STEmbedding] 模型加载成功: {self.model}")
+                            logger.info("[STEmbedding] 模型加载成功")
                         except Exception as e:
                             logger.error(f"[STEmbedding] 模型加载失败: {e}", exc_info=True)
                             raise
 
                     async def get_embedding(self, text: str) -> list[float]:
-                        """获取单个文本的嵌入向量"""
-                        embedding = self.model.encode(text)
-                        # 确保返回的是Python list而不是numpy array
-                        return embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
+                        """获取单个文本的嵌入向量 - 异步执行"""
+                        loop = asyncio.get_running_loop()
+                        try:
+                            # 在线程池中执行同步的模型推理
+                            embedding = await loop.run_in_executor(
+                                None, self.model.encode, text
+                            )
+                            # 确保返回的是Python list而不是numpy array
+                            return embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
+                        except Exception as e:
+                            logger.error(f"[STEmbedding] 获取嵌入向量失败: {e}", exc_info=True)
+                            raise
 
                     async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
-                        """获取多个文本的嵌入向量"""
-                        embeddings = self.model.encode(texts)
-                        # 确保返回的是Python list而不是numpy array
-                        return embeddings.tolist() if hasattr(embeddings, "tolist") else list(embeddings)
+                        """获取多个文本的嵌入向量 - 异步执行"""
+                        loop = asyncio.get_running_loop()
+                        try:
+                            # 在线程池中执行同步的模型推理
+                            embeddings = await loop.run_in_executor(
+                                None, self.model.encode, texts
+                            )
+                            # 确保返回的是Python list而不是numpy array
+                            return embeddings.tolist() if hasattr(embeddings, "tolist") else list(embeddings)
+                        except Exception as e:
+                            logger.error(f"[STEmbedding] 获取批量嵌入向量失败: {e}", exc_info=True)
+                            raise
 
                     def get_dim(self) -> int:
                         """获取嵌入向量的维度"""
                         return self.provider_config.get("embedding_dimensions", 384)
             except ValueError as e:
-                logger.info(f"[STEmbedding] STEmbedding已经注册,无需进行注册,e:{e}")
+                logger.info(f"[STEmbedding] STEmbedding已经注册: {e}")
+        else:
+            logger.info("[STEmbedding] STEmbedding已经注册")
 
         # 保存适配器类的引用
         cls._registered = True
@@ -123,13 +146,18 @@ class STEmbedding(Star):
         if removed_item:
             logger.debug("[STEmbedding] 已从配置项中移除STEmbedding_path")
 
-        # 4. 重置状态
+        # 3. 重置状态
         cls._registered = False
         logger.info("[STEmbedding] 配置清理完成")
 
     @filter.command("STEmbedding")
     async def stembedding(self, event: AstrMessageEvent):
         """STEmbedding 命令处理器"""
+        if not self.available:
+            yield event.plain_result(
+                "STEmbedding插件功能受限，请安装sentence-transformers库：pip install sentence-transformers"
+            )
+            return
         yield event.plain_result("你好，这是 STEmbedding 插件")
 
     @filter.command("cs")
@@ -139,6 +167,11 @@ class STEmbedding(Star):
 
     async def initialize(self):
         """插件初始化方法 - 注册配置"""
+        if not self.available:
+            logger.warning("[STEmbedding] sentence-transformers库未安装，插件功能受限")
+            yield "STEmbedding插件功能受限，请安装sentence-transformers库：pip install sentence-transformers"
+            return
+
         logger.info("[STEmbedding] 插件正在初始化，注册配置...")
         self._register_config()
         logger.info("[STEmbedding] 配置和适配器已注册")
@@ -146,24 +179,5 @@ class STEmbedding(Star):
     async def terminate(self):
         """插件终止方法 - 清理所有注册的配置"""
         logger.info("[STEmbedding] 插件正在终止，清理配置...")
-
-        # 检查是否还有其他插件在使用STEmbedding
-        try:
-            st_in_use = False
-
-            # 遍历所有已注册的适配器，检查STEmbedding是否还被其他适配器使用
-            for pm in provider_registry:
-                if hasattr(pm, "type") and pm.type == "STEmbedding":
-                    # 如果找到STEmbedding适配器
-                    st_in_use = True
-
-            if not st_in_use and not self._registered:
-                logger.info("[STEmbedding] 适配器未注册，无需清理")
-                return
-
-        except Exception as e:
-            logger.warning(f"[STEmbedding] 检查适配器状态时出错: {e}")
-
-        # 执行清理
         self._unregister_config()
         logger.info("[STEmbedding] 插件终止完成")
