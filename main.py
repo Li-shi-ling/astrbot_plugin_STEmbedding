@@ -1,13 +1,16 @@
-from astrbot.core.provider.register import provider_registry, provider_cls_map
-from astrbot.core.provider.register import register_provider_adapter
-from astrbot.core.provider.provider import EmbeddingProvider
+import os
+
+from astrbot.api import AstrBotConfig, logger
+from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.api.star import Context, Star, StarTools, register
 from astrbot.core.config.default import CONFIG_METADATA_2
 from astrbot.core.provider.entities import ProviderType
-from astrbot.api.event import filter, AstrMessageEvent
-from astrbot.api.star import Context, Star, register
-from astrbot.api.star import StarTools
-from astrbot.api import AstrBotConfig, logger
-import os
+from astrbot.core.provider.provider import EmbeddingProvider
+from astrbot.core.provider.register import (
+    provider_cls_map,
+    provider_registry,
+    register_provider_adapter,
+)
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -49,7 +52,7 @@ class STEmbedding(Star):
 
         st_in_use = False
         for pm in provider_registry:
-            if hasattr(pm, 'type') and pm.type == "STEmbedding":
+            if hasattr(pm, "type") and pm.type == "STEmbedding":
                 # 如果找到STEmbedding适配器
                 st_in_use = True
 
@@ -79,20 +82,20 @@ class STEmbedding(Star):
                             self.model = SentenceTransformer(self.STEmbedding_path)
                             logger.info(f"[STEmbedding] 模型加载成功: {self.model}")
                         except Exception as e:
-                            logger.error(f'[STEmbedding] 模型加载失败: {e}', exc_info=True)
+                            logger.error(f"[STEmbedding] 模型加载失败: {e}", exc_info=True)
                             raise
 
                     async def get_embedding(self, text: str) -> list[float]:
                         """获取单个文本的嵌入向量"""
                         embedding = self.model.encode(text)
                         # 确保返回的是Python list而不是numpy array
-                        return embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+                        return embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
 
                     async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
                         """获取多个文本的嵌入向量"""
                         embeddings = self.model.encode(texts)
                         # 确保返回的是Python list而不是numpy array
-                        return embeddings.tolist() if hasattr(embeddings, 'tolist') else list(embeddings)
+                        return embeddings.tolist() if hasattr(embeddings, "tolist") else list(embeddings)
 
                     def get_dim(self) -> int:
                         """获取嵌入向量的维度"""
@@ -150,7 +153,7 @@ class STEmbedding(Star):
 
             # 遍历所有已注册的适配器，检查STEmbedding是否还被其他适配器使用
             for pm in provider_registry:
-                if hasattr(pm, 'type') and pm.type == "STEmbedding":
+                if hasattr(pm, "type") and pm.type == "STEmbedding":
                     # 如果找到STEmbedding适配器
                     st_in_use = True
 
