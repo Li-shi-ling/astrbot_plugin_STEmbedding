@@ -32,10 +32,9 @@ class STEmbedding(Star):
         self.model = None
         self.available = sentence_transformers_available
 
-    @classmethod
-    def _register_config(cls):
+    def _register_config(self):
         """注册STEmbedding配置到全局配置中"""
-        if cls._registered:
+        if self._registered:
             return
 
         # 注册配置模板
@@ -167,11 +166,11 @@ class STEmbedding(Star):
         else:
             logger.info("[STEmbedding] STEmbedding已经注册")
 
+        logger.info(f"成功重新加载所有数据库")
         # 保存适配器类的引用
-        cls._registered = True
+        self._registered = True
 
-    @classmethod
-    def _unregister_config(cls):
+    def _unregister_config(self):
         """取消注册STEmbedding配置"""
         logger.info("[STEmbedding] 开始清理配置...")
 
@@ -188,7 +187,7 @@ class STEmbedding(Star):
             logger.debug("[STEmbedding] 已从配置项中移除STEmbedding_path")
 
         # 3. 重置状态
-        cls._registered = False
+        self._registered = False
         logger.info("[STEmbedding] 配置清理完成")
 
     @filter.command("STEmbedding")
@@ -215,6 +214,9 @@ class STEmbedding(Star):
         logger.info("[STEmbedding] 插件正在初始化，注册配置...")
         self._register_config()
         logger.info("[STEmbedding] 配置和适配器已注册")
+
+        # 重新加载所有数据库,防止错误操作导致的数据库检测不到
+        await self.context.kb_manager.load_kbs()
 
     async def terminate(self):
         """插件终止方法 - 清理所有注册的配置"""
