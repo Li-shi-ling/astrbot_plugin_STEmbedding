@@ -99,9 +99,6 @@ class STEmbedding(Star):
     @classmethod
     def _unregister_config(cls):
         """取消注册STEmbedding配置"""
-        if not cls._registered:
-            return
-
         logger.info("[STEmbedding] 开始清理配置...")
 
         # 1. 从配置模板中移除STEmbedding
