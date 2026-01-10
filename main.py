@@ -152,6 +152,11 @@ class STEmbedding(Star):
         """STEmbedding 命令处理器"""
         yield event.plain_result("你好，这是 STEmbedding 插件")
 
+    @filter.command("cs")
+    async def cs(self, event: AstrMessageEvent):
+        """cs 命令处理器"""
+        logger.info(f"provider_cls_map:{list(provider_cls_map.keys())}")
+
     async def initialize(self):
         """插件初始化方法"""
         logger.info("[STEmbedding] 插件正在初始化...")
