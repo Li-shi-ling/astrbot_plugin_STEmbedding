@@ -20,6 +20,7 @@ except ImportError:
 class STEmbedding(Star):
     # 类属性
     _registered = False
+    _init = False
 
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -47,52 +48,56 @@ class STEmbedding(Star):
             "type": "string",
         }
 
-        if not "STEmbedding" in provider_cls_map:
-            # 注册适配器
-            @register_provider_adapter(
-                "STEmbedding",
-                "Sentence Transformers Embedding 提供商适配器",
-                provider_type=ProviderType.EMBEDDING,
-            )
-            class STEmbeddingProvider(EmbeddingProvider):
-                def __init__(self, provider_config: dict, provider_settings: dict) -> None:
-                    super().__init__(provider_config, provider_settings)
-                    self.provider_config = provider_config
-                    self.provider_settings = provider_settings
+        if cls._init:
+            try:
+                # 注册适配器
+                @register_provider_adapter(
+                    "STEmbedding",
+                    "Sentence Transformers Embedding 提供商适配器",
+                    provider_type=ProviderType.EMBEDDING,
+                )
+                class STEmbeddingProvider(EmbeddingProvider):
+                    def __init__(self, provider_config: dict, provider_settings: dict) -> None:
+                        super().__init__(provider_config, provider_settings)
+                        self.provider_config = provider_config
+                        self.provider_settings = provider_settings
 
-                    # 处理路径：如果是相对路径，则基于data_dir；如果是绝对路径，直接使用
-                    base_path = self.provider_config.get("STEmbedding_path", "./paraphrase-multilingual-MiniLM-L12-v2/")
-                    if os.path.isabs(base_path):
-                        self.STEmbedding_path = base_path
-                    else:
-                        self.STEmbedding_path = os.path.join(str(StarTools.get_data_dir()), base_path)
+                        # 处理路径：如果是相对路径，则基于data_dir；如果是绝对路径，直接使用
+                        base_path = self.provider_config.get("STEmbedding_path", "./paraphrase-multilingual-MiniLM-L12-v2/")
+                        if os.path.isabs(base_path):
+                            self.STEmbedding_path = base_path
+                        else:
+                            self.STEmbedding_path = os.path.join(str(StarTools.get_data_dir()), base_path)
 
-                    logger.info(f"[STEmbedding] 正在加载模型: {self.STEmbedding_path}")
-                    try:
-                        self.model = SentenceTransformer(self.STEmbedding_path)
-                        logger.info(f"[STEmbedding] 模型加载成功: {self.model}")
-                    except Exception as e:
-                        logger.error(f'[STEmbedding] 模型加载失败: {e}', exc_info=True)
-                        raise
+                        logger.info(f"[STEmbedding] 正在加载模型: {self.STEmbedding_path}")
+                        try:
+                            self.model = SentenceTransformer(self.STEmbedding_path)
+                            logger.info(f"[STEmbedding] 模型加载成功: {self.model}")
+                        except Exception as e:
+                            logger.error(f'[STEmbedding] 模型加载失败: {e}', exc_info=True)
+                            raise
 
-                async def get_embedding(self, text: str) -> list[float]:
-                    """获取单个文本的嵌入向量"""
-                    embedding = self.model.encode(text)
-                    # 确保返回的是Python list而不是numpy array
-                    return embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+                    async def get_embedding(self, text: str) -> list[float]:
+                        """获取单个文本的嵌入向量"""
+                        embedding = self.model.encode(text)
+                        # 确保返回的是Python list而不是numpy array
+                        return embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
 
-                async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
-                    """获取多个文本的嵌入向量"""
-                    embeddings = self.model.encode(texts)
-                    # 确保返回的是Python list而不是numpy array
-                    return embeddings.tolist() if hasattr(embeddings, 'tolist') else list(embeddings)
+                    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
+                        """获取多个文本的嵌入向量"""
+                        embeddings = self.model.encode(texts)
+                        # 确保返回的是Python list而不是numpy array
+                        return embeddings.tolist() if hasattr(embeddings, 'tolist') else list(embeddings)
 
-                def get_dim(self) -> int:
-                    """获取嵌入向量的维度"""
-                    return self.provider_config.get("embedding_dimensions", 384)
+                    def get_dim(self) -> int:
+                        """获取嵌入向量的维度"""
+                        return self.provider_config.get("embedding_dimensions", 384)
+            except ValueError as e:
+                logger.info(f"[STEmbedding] STEmbedding已经注册,无需进行注册,e:{e}")
 
         # 保存适配器类的引用
         cls._registered = True
+        cls._init = True
 
     @classmethod
     def _unregister_config(cls):
