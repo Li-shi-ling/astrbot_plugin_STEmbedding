@@ -20,7 +20,6 @@ except ImportError:
 class STEmbedding(Star):
     # 类属性
     _registered = False
-    _init = False
 
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -48,7 +47,13 @@ class STEmbedding(Star):
             "type": "string",
         }
 
-        if cls._init:
+        st_in_use = False
+        for pm in provider_registry:
+            if hasattr(pm, 'type') and pm.type == "STEmbedding":
+                # 如果找到STEmbedding适配器
+                st_in_use = True
+
+        if not st_in_use:
             try:
                 # 注册适配器
                 @register_provider_adapter(
@@ -97,7 +102,6 @@ class STEmbedding(Star):
 
         # 保存适配器类的引用
         cls._registered = True
-        cls._init = True
 
     @classmethod
     def _unregister_config(cls):
