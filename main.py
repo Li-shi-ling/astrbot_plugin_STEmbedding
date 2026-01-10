@@ -17,7 +17,6 @@ from astrbot.core.provider.register import (
 sentence_transformers_available = False
 try:
     from sentence_transformers import SentenceTransformer
-
     sentence_transformers_available = True
 except ImportError:
     logger.warning("未检测到 sentence-transformers 库，插件功能将受限")
@@ -57,11 +56,14 @@ class STEmbedding(Star):
         }
 
         st_in_use = False
-        for pm in provider_registry:
-            if hasattr(pm, "type") and pm.type == "STEmbedding":
-                st_in_use = True
+        if isinstance(provider_registry, list):
+            for pm in provider_registry:
+                if hasattr(pm, "type") and pm.type == "STEmbedding":
+                    st_in_use = True
+        else:
+            st_in_use = False
 
-        if not st_in_use:
+        if not st_in_use and sentence_transformers_available:
             try:
                 # 保持适配器类在方法内部定义,为了防止ASTRbot的插件的类别检测检测到STEmbeddingProvider,然后导致插件无法动态导入
                 @register_provider_adapter(
@@ -109,10 +111,16 @@ class STEmbedding(Star):
                             logger.info(f"[STEmbedding] 开始加载模型: {self.STEmbedding_path}")
 
                             try:
+                                from sentence_transformers import SentenceTransformer
                                 self.model = await loop.run_in_executor(
                                     None, SentenceTransformer, self.STEmbedding_path
                                 )
                                 logger.info("[STEmbedding] 模型加载成功")
+                            except ImportError:
+                                logger.error(
+                                    f"[STEmbedding] 模型加载失败,没有sentence_transformers包,请使用pip install sentence-transformers"
+                                )
+                                raise
                             except Exception as e:
                                 logger.error(
                                     f"[STEmbedding] 模型加载失败: {e}", exc_info=True
