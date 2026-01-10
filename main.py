@@ -6,7 +6,7 @@ from astrbot.core.provider.entities import ProviderType
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api.star import StarTools
-from astrbot.api import logger
+from astrbot.api import AstrBotConfig, logger
 import os
 
 try:
@@ -21,7 +21,7 @@ class STEmbedding(Star):
     # 类属性
     _registered = False
 
-    def __init__(self, context: Context):
+    def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
 
     @classmethod
@@ -116,24 +116,23 @@ class STEmbedding(Star):
         # 3. 从提供者注册表中移除适配器
         try:
             # 从provider_cls_map中移除
-            if hasattr(cls, 'provider_cls_map') and "STEmbedding" in provider_cls_map:
-                removed_cls = cls.provider_cls_map.pop("STEmbedding", None)
+            if "STEmbedding" in provider_cls_map:
+                removed_cls = provider_cls_map.pop("STEmbedding", None)
                 logger.debug(f"[STEmbedding] 已从provider_cls_map中移除: {removed_cls}")
 
             # 从provider_registry中移除
-            if hasattr(cls, 'provider_registry'):
-                registry_removed = False
-                for i in range(len(cls.provider_registry) - 1, -1, -1):
-                    pm = cls.provider_registry[i]
-                    # 检查是否是我们注册的STEmbedding适配器
-                    if hasattr(pm, 'type') and pm.type == "STEmbedding":
-                        removed_pm = cls.provider_registry.pop(i)
-                        logger.debug(f"[STEmbedding] 已从provider_registry中移除: {removed_pm}")
-                        registry_removed = True
-                        break
+            registry_removed = False
+            for i in range(len(provider_registry) - 1, -1, -1):
+                pm = provider_registry[i]
+                # 检查是否是我们注册的STEmbedding适配器
+                if hasattr(pm, 'type') and pm.type == "STEmbedding":
+                    removed_pm = provider_registry.pop(i)
+                    logger.debug(f"[STEmbedding] 已从provider_registry中移除: {removed_pm}")
+                    registry_removed = True
+                    break
 
-                if not registry_removed:
-                    logger.debug("[STEmbedding] 在provider_registry中未找到STEmbedding适配器")
+            if not registry_removed:
+                logger.debug("[STEmbedding] 在provider_registry中未找到STEmbedding适配器")
 
         except Exception as e:
             logger.warning(f"[STEmbedding] 从注册表移除时出错: {e}")

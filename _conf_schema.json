@@ -1,0 +1,8 @@
+{
+  "placeholder": {
+    "description": "占位符",
+    "type": "string",
+    "default": "",
+    "hint": ""
+  }
+}
