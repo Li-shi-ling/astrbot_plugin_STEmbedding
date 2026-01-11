@@ -13,6 +13,8 @@ from astrbot.core.provider.register import (
     register_provider_adapter,
 )
 
+DEFAULT_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
+
 # ============================================================
 # Embedding Provider
 # ============================================================
@@ -27,7 +29,7 @@ class STEmbeddingProvider(EmbeddingProvider):
         # -------- 模型路径处理（Pathlib）--------
         base_path = provider_config.get(
             "STEmbedding_path",
-            "paraphrase-multilingual-MiniLM-L12-v2"
+            DEFAULT_MODEL_NAME
         )
 
         data_dir = Path(StarTools.get_data_dir())
@@ -167,7 +169,6 @@ class STEmbeddingProvider(EmbeddingProvider):
             return True
         return self._cleanup_resources()
 
-
 # ============================================================
 # Provider 注册函数（只负责注册）
 # ============================================================
@@ -205,7 +206,7 @@ class STEmbedding(Star):
                 "id": "STEmbedding",
                 "type": "STEmbedding",
                 "provider": "Local",
-                "STEmbedding_path": "paraphrase-multilingual-MiniLM-L12-v2",
+                "STEmbedding_path": DEFAULT_MODEL_NAME,
                 "provider_type": "embedding",
                 "enable": True,
                 "embedding_dimensions": 384,
@@ -260,8 +261,10 @@ class STEmbedding(Star):
     async def help(self, event: AstrMessageEvent):
         help_text = [
             "STEmbedding 插件",
-            "/ste register  注册 Provider",
-            "/ste redb      重新加载数据库",
+            "/ste register                      注册 Provider",
+            "/ste redb                          重新加载数据库",
+            "/ste kbnep                         获取所有数据库以及其对应的embedding_provider_id",
+            "/ste ukbw [embedding_provider_id]  卸载掉embedding_provider_id的权重(防止不运行时消耗过大)",
         ]
         yield event.plain_result("\n".join(help_text))
 
@@ -276,6 +279,30 @@ class STEmbedding(Star):
         if self._register_config():
             yield event.plain_result("[STEmbedding] 注册 Provider 成功")
         await self.context.kb_manager.load_kbs()
+
+    @ste.command("kbnep")
+    async def get_kb_name_epid(self, event: AstrMessageEvent):
+        """获取所有数据库以及其对应的编码器"""
+        outputtext = []
+        for kb_helper in self.context.kb_manager.kb_insts.values():
+            outputtext.append(
+                f"数据库名称:{kb_helper.kb.kb_name}, 编码器:{kb_helper.kb.embedding_provider_id}"
+            )
+        yield event.plain_result(f"可用数据库:\n" + "\n".join(outputtext))
+        logger.info(f"[STEmbedding] 可用数据库:\n" + "\n".join(outputtext))
+
+    @ste.command("ukbw")
+    async def uninstall_kbw(self, event: AstrMessageEvent, embedding_provider_id: str):
+        pm = self.context.provider_manager.get_provider_by_id(embedding_provider_id)
+        if isinstance(pm, STEmbeddingProvider):
+            yield event.plain_result(f"[STEmbedding] 正在清理权重")
+            logger.info(f"[STEmbedding] 正在清理权重")
+            await pm.unload_model()
+            yield event.plain_result(f"[STEmbedding] 清理权重成功")
+            logger.info(f"[STEmbedding] 清理权重成功")
+        else:
+            yield event.plain_result(f"[STEmbedding] 编码器实例:{embedding_provider_id},不为STEmbeddingProvider")
+            logger.info(f"[STEmbedding] 编码器实例:{embedding_provider_id},不为STEmbeddingProvider")
 
     # --------------------------------------------------------
     # 生命周期
