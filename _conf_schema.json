@@ -1,8 +1,8 @@
 {
-  "placeholder": {
-    "description": "占位符",
-    "type": "string",
-    "default": "",
-    "hint": ""
+  "auto_start": {
+    "description": "是否开机自启",
+    "type": "int",
+    "default": 0,
+    "hint": "(0:否,1:是)"
   }
 }
