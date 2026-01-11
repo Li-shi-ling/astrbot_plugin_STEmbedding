@@ -162,7 +162,12 @@ class STEmbeddingProvider(EmbeddingProvider):
             if self.model is None:
                 logger.info("[STEmbedding] 模型未加载，无需卸载")
                 return True
-            return self._cleanup_resources()
+
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(
+                None,
+                self._cleanup_resources
+            )
 
     def force_unload_sync(self) -> bool:
         if self.model is None:
