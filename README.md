@@ -76,67 +76,7 @@ embedding_provider:
 ```
 
 ### 2. 插件命令
-插件提供以下命令：
-
-#### `STEmbedding` 命令
-```bash
-# 测试插件是否正常工作
-STEmbedding
-```
-响应: "你好，这是 STEmbedding 插件"
-
-#### `cs` 命令
-```bash
-# 查看当前注册的 provider 类
-cs
-```
-用于调试，查看所有已注册的 provider 类
-
-### 3. 在代码中使用
-```python
-# 在 AstrBot 的其他插件中调用
-provider = await self.get_provider("embedding")
-embedding = await provider.get_embedding("你好，世界")
-embeddings = await provider.get_embeddings(["文本1", "文本2", "文本3"])
-dimensions = provider.get_dim()
-```
-
-## API 接口
-
-### STEmbeddingProvider 类
-
-#### 初始化
-```python
-def __init__(self, provider_config: dict, provider_settings: dict)
-```
-- `provider_config`: 提供者配置字典
-- `provider_settings`: 提供者设置字典
-
-#### 方法
-
-##### `async get_embedding(text: str) -> list[float]`
-获取单个文本的嵌入向量
-
-**参数:**
-- `text`: 输入文本字符串
-
-**返回:**
-- `list[float]`: 嵌入向量列表
-
-##### `async get_embeddings(texts: list[str]) -> list[list[float]]`
-获取多个文本的嵌入向量
-
-**参数:**
-- `texts`: 文本字符串列表
-
-**返回:**
-- `list[list[float]]`: 嵌入向量列表的列表
-
-##### `get_dim() -> int`
-获取嵌入向量的维度
-
-**返回:**
-- `int`: 向量维度
+使用 /ste help 获取帮助
 
 ## 模型支持
 
@@ -190,12 +130,6 @@ pip install sentence-transformers
 - 增加系统内存
 - 分批处理文本
 
-### 日志级别
-```python
-# 查看详细日志
-logger.setLevel("DEBUG")
-```
-
 ## 版本历史
 
 ### v1.0.0
@@ -225,14 +159,6 @@ logger.setLevel("DEBUG")
 ### v1.2.0 (当前版本)
 - 修改卸载参数为异步方法
 
-## 贡献指南
-
-1. Fork 本仓库
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
 ## 支持与联系
 
 - 提交 Issue: [GitHub Issues](https://github.com/your-repo/astrbot-stembedding/issues)
@@ -241,4 +167,3 @@ logger.setLevel("DEBUG")
 
 - [Sentence Transformers](https://www.sbert.net/) - 用于生成嵌入向量
 - [AstrBot](https://github.com/your-repo/astrbot) - 提供插件框架
-- 所有贡献者和用户
