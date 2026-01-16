@@ -19,10 +19,6 @@ DEFAULT_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 # Embedding Provider
 # ============================================================
 class STEmbeddingProvider(EmbeddingProvider):
-    """
-    Sentence-Transformers Embedding Provider
-    """
-
     def __init__(self, provider_config: dict, provider_settings: dict) -> None:
         super().__init__(provider_config, provider_settings)
 
@@ -275,6 +271,7 @@ class STEmbedding(Star):
 
     @ste.command("redb")
     async def redb(self, event: AstrMessageEvent):
+        """重新加载数据库,防止在astrbot初始化后出现,STEmbeddingProvider未注册数据库加载失败,从而无法加载数据库的情况"""
         await self.context.kb_manager.load_kbs()
         yield event.plain_result("[STEmbedding] 数据库已重新加载")
 
@@ -320,8 +317,11 @@ class STEmbedding(Star):
         logger.info("[STEmbedding] 插件初始化中")
         if self._register_config():
             logger.info("[STEmbedding] 注册 Provider 成功")
-            await self.context.kb_manager.load_kbs()
-            logger.info("[STEmbedding] 插件初始化完成")
+            try:
+                await self.context.kb_manager.load_kbs()
+                logger.info("[STEmbedding] 插件初始化完成")
+            except:
+                logger.error("[STEmbedding] self.context.kb_manager数据库重载失败,如果存在无法加载的数据库,请使用/ste redb手动重载")
         else:
             logger.error("[STEmbedding] 插件初始化失败")
 
