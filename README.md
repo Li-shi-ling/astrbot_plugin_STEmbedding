@@ -28,24 +28,32 @@ pip install sentence-transformers
 ### 自动注册的配置项
 插件初始化时会自动向 AstrBot 注册以下配置：
 
-```yaml
-provider_group:
-  metadata:
-    provider:
-      config_template:
-        STEmbedding:
-          id: "STEmbedding"
-          type: "STEmbedding"
-          provider: "Local"
-          STEmbedding_path: "./paraphrase-multilingual-MiniLM-L12-v2/"
-          provider_type: "embedding"
-          enable: true
-          embedding_dimensions: 384
-      
-      items:
-        STEmbedding_path:
-          description: "SentenceTransformer模型的路径"
-          type: "string"
+```json
+{
+  "provider_group": {
+    "metadata": {
+      "provider": {
+        "config_template": {
+          "STEmbedding": {
+            "id": "STEmbedding",
+            "type": "STEmbedding",
+            "provider": "Local",
+            "STEmbedding_path": "./paraphrase-multilingual-MiniLM-L12-v2/",
+            "provider_type": "embedding",
+            "enable": true,
+            "embedding_dimensions": 384
+          }
+        },
+        "items": {
+          "STEmbedding_path": {
+            "description": "SentenceTransformer模型的路径",
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
 ```
 
 ### 配置参数详解
@@ -64,16 +72,9 @@ provider_group:
 ## 使用方法
 
 ### 1. 作为嵌入向量提供者
-在 AstrBot 配置文件中引用 STEmbedding：
-
-```yaml
-# config.yaml
-embedding_provider:
-  type: "STEmbedding"
-  config:
-    STEmbedding_path: "./your-model-directory/"
-    embedding_dimensions: 384
-```
+可以在插件配置里面选择开机自启
+第一次需要用户手动操作启动,使用指令`/ste register`将提供商注册到嵌入向量提供者
+然后可以通过嵌入式模型的创建页面创建这个嵌入向量提供者
 
 ### 2. 插件命令
 使用 /ste help 获取帮助
