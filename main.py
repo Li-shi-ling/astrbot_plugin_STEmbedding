@@ -329,11 +329,13 @@ class STEmbedding(Star):
     # --------------------------------------------------------
     @filter.on_astrbot_loaded()
     async def init_db(self):
+        """如果启动自动加载,将在astrbot启动后自动刷新数据库"""
         if not self.auto_start:
             return
+        if not self._registered:
+            logger.info("[STEmbedding] 刷新数据库失败,未注册编码器")
         try:
             await self.context.kb_manager.load_kbs()
             logger.info("[STEmbedding] 插件初始化完成,已重新刷新数据库")
         except:
-            logger.error("[STEmbedding] 如果你看到这个,请提交iss,我忘记删除debug日志了")
             raise
