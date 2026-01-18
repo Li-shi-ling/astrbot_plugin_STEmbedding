@@ -1,6 +1,6 @@
 # STEmbedding - AstrBot 嵌入向量生成插件
 
-一个为 [AstrBot](https://github.com/your-repo/astrbot) 框架设计的 Sentence Transformers 嵌入向量生成插件，提供本地部署的文本嵌入功能。
+一个为 [AstrBot](https://github.com/AstrBotDevs/astrbot) 框架设计的 Sentence Transformers 嵌入向量生成插件，提供本地部署的文本嵌入功能。
 
 ## 功能特性
 
