@@ -170,4 +170,4 @@ pip install sentence-transformers
 ## 致谢
 
 - [Sentence Transformers](https://www.sbert.net/) - 用于生成嵌入向量
-- [AstrBot](https://github.com/your-repo/astrbot) - 提供插件框架
+- [AstrBot](https://github.com/AstrBotDevs/AstrBot) - 提供插件框架
