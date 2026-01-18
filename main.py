@@ -120,7 +120,7 @@ class STEmbeddingProvider(EmbeddingProvider):
                 pass
 
             return True
-        except Exception:
+        except:
             logger.error("[STEmbedding] 资源清理失败", exc_info=True)
             return False
 
@@ -311,17 +311,11 @@ class STEmbedding(Star):
     # --------------------------------------------------------
     async def initialize(self):
         if not self.auto_start:
-            logger.info("[STEmbedding] 未启用开机自启")
+            logger.info("[STEmbedding] 未启用自加载")
             return
-
         logger.info("[STEmbedding] 插件初始化中")
         if self._register_config():
             logger.info("[STEmbedding] 注册 Provider 成功")
-            try:
-                await self.context.kb_manager.load_kbs()
-                logger.info("[STEmbedding] 插件初始化完成")
-            except:
-                logger.error("[STEmbedding] self.context.kb_manager数据库重载失败,如果存在无法加载的数据库,请使用/ste redb手动重载")
         else:
             logger.error("[STEmbedding] 插件初始化失败")
 
@@ -329,3 +323,17 @@ class STEmbedding(Star):
         logger.info("[STEmbedding] 插件终止中")
         self._unregister_config()
         logger.info("[STEmbedding] 插件终止完成")
+
+    # --------------------------------------------------------
+    # 在astrbot启动时
+    # --------------------------------------------------------
+    @filter.on_astrbot_loaded()
+    async def init_db(self):
+        if not self.auto_start:
+            return
+        try:
+            await self.context.kb_manager.load_kbs()
+            logger.info("[STEmbedding] 插件初始化完成,已重新刷新数据库")
+        except:
+            logger.error("[STEmbedding] 如果你看到这个,请提交iss,我忘记删除debug日志了")
+            raise
