@@ -165,7 +165,7 @@ pip install sentence-transformers
 
 ## 支持与联系
 
-- 提交 Issue: [GitHub Issues](https://github.com/your-repo/astrbot-stembedding/issues)
+- 提交 Issue: [GitHub Issues](https://github.com/Li-shi-ling/astrbot_plugin_STEmbedding/issues)
 
 ## 致谢
 
