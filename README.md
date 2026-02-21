@@ -166,6 +166,7 @@ pip install sentence-transformers
 ## 支持与联系
 
 - 提交 Issue: [GitHub Issues](https://github.com/Li-shi-ling/astrbot_plugin_STEmbedding/issues)
+- QQ群: 1083090761
 
 ## 致谢
 

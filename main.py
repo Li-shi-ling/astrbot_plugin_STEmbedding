@@ -260,6 +260,7 @@ class STEmbedding(Star):
 
     @ste.command("help")
     async def help(self, event: AstrMessageEvent):
+        """获取代码帮助"""
         help_text = [
             "STEmbedding 插件",
             "/ste register                      注册 Provider",
@@ -277,6 +278,7 @@ class STEmbedding(Star):
 
     @ste.command("register")
     async def register_cmd(self, event: AstrMessageEvent):
+        """主动将STEmbedding注册到嵌入式向量提供商"""
         yield event.plain_result("[STEmbedding] 正在注册 Provider")
         if self._register_config():
             yield event.plain_result("[STEmbedding] 注册 Provider 成功")
@@ -295,6 +297,7 @@ class STEmbedding(Star):
 
     @ste.command("ukbw")
     async def uninstall_kbw(self, event: AstrMessageEvent, embedding_provider_id: str):
+        """清理权重,防止用不到权重时,权重会占用太多内存"""
         pm = self.context.provider_manager.get_provider_by_id(embedding_provider_id)
         if isinstance(pm, STEmbeddingProvider):
             yield event.plain_result(f"[STEmbedding] 正在清理权重")
