@@ -1,6 +1,9 @@
 import asyncio
 import gc
+import inspect
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
@@ -14,6 +17,119 @@ from astrbot.core.provider.register import (
 )
 
 DEFAULT_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
+
+def _exception_chain_text(exc: BaseException) -> str:
+    parts: list[str] = []
+    cur: BaseException | None = exc
+    seen: set[int] = set()
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        try:
+            text = str(cur)
+        except Exception:
+            text = repr(cur)
+        if text:
+            parts.append(text)
+        cur = cur.__cause__ or cur.__context__
+    return "\n".join(parts)
+
+def _looks_like_torch_weights_only_error(exc: BaseException) -> bool:
+    text = _exception_chain_text(exc).lower()
+    if not text:
+        return False
+
+    if "weights only load failed" in text:
+        return True
+    if "weightsunpickler" in text and "weights_only" in text:
+        return True
+    if "torch.load" in text and "weights_only" in text and "default value" in text:
+        return True
+
+    return False
+
+def _parse_weights_only_override(value) -> bool | None:
+    if value is None:
+        return None
+
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, int):
+        return bool(value)
+
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in {"", "auto"}:
+            return None
+        if v in {"true", "1", "yes", "y", "on"}:
+            return True
+        if v in {"false", "0", "no", "n", "off"}:
+            return False
+
+    return None
+
+@contextmanager
+def _torch_load_weights_only_default(weights_only: bool) -> Iterator[None]:
+    """
+    临时修改 torch.load 的默认 weights_only 行为。
+
+    - 仅当当前 torch.load 支持 weights_only 参数时生效
+    - 退出时恢复原始函数，避免影响进程内其他加载逻辑
+    """
+    try:
+        import torch
+    except Exception:
+        yield
+        return
+
+    try:
+        sig = inspect.signature(torch.load)
+    except Exception:
+        yield
+        return
+
+    if "weights_only" not in sig.parameters:
+        yield
+        return
+
+    original_torch_load = torch.load
+
+    serialization_module = None
+    original_serialization_load = None
+    try:
+        import torch.serialization as serialization_module  # type: ignore
+        if hasattr(serialization_module, "load"):
+            original_serialization_load = serialization_module.load
+    except Exception:
+        serialization_module = None
+        original_serialization_load = None
+
+    def patched_load(*args, **kwargs):
+        kwargs.setdefault("weights_only", weights_only)
+        return original_torch_load(*args, **kwargs)
+
+    torch.load = patched_load
+    if (
+        serialization_module is not None
+        and original_serialization_load is original_torch_load
+    ):
+        serialization_module.load = patched_load
+
+    try:
+        yield
+    finally:
+        torch.load = original_torch_load
+        if serialization_module is not None and original_serialization_load is not None:
+            serialization_module.load = original_serialization_load
+
+def _load_sentence_transformer(model_path: str, weights_only: bool | None):
+    from sentence_transformers import SentenceTransformer
+
+    if weights_only is None:
+        return SentenceTransformer(model_path)
+
+    with _torch_load_weights_only_default(weights_only):
+        return SentenceTransformer(model_path)
 
 # ============================================================
 # Embedding Provider
@@ -54,7 +170,8 @@ class STEmbeddingProvider(EmbeddingProvider):
         logger.info(
             f"[STEmbedding] Provider 初始化完成，"
             f"env_available={self._env_available}, "
-            f"model_path={self.STEmbedding_path}"
+            f"model_path={self.STEmbedding_path}, "
+            f"torch_load_weights_only={provider_config.get('STEmbedding_torch_load_weights_only', 'auto')}"
         )
 
     # ====================================================
@@ -81,20 +198,49 @@ class STEmbeddingProvider(EmbeddingProvider):
             logger.info(f"[STEmbedding] 开始加载模型: {self.STEmbedding_path}")
             loop = asyncio.get_running_loop()
 
+            weights_only_override = _parse_weights_only_override(
+                self.provider_config.get("STEmbedding_torch_load_weights_only", "auto")
+            )
+
             try:
-                from sentence_transformers import SentenceTransformer
-                self.model = await loop.run_in_executor(
-                    None,
-                    SentenceTransformer,
-                    str(self.STEmbedding_path)
-                )
-                logger.info("[STEmbedding] 模型加载成功")
+                try:
+                    self.model = await loop.run_in_executor(
+                        None,
+                        _load_sentence_transformer,
+                        str(self.STEmbedding_path),
+                        weights_only_override,
+                    )
+                    if weights_only_override is None:
+                        logger.info("[STEmbedding] 模型加载成功")
+                    else:
+                        logger.info(
+                            f"[STEmbedding] 模型加载成功（weights_only={weights_only_override}）"
+                        )
+                except Exception as e:
+                    if weights_only_override is None and _looks_like_torch_weights_only_error(e):
+                        logger.warning(
+                            "[STEmbedding] 检测到 PyTorch weights_only 加载失败，"
+                            "正在使用 weights_only=False 重试（仅可信模型）"
+                        )
+                        self.model = await loop.run_in_executor(
+                            None,
+                            _load_sentence_transformer,
+                            str(self.STEmbedding_path),
+                            False,
+                        )
+                        logger.info("[STEmbedding] 模型加载成功（weights_only=False）")
+                    else:
+                        raise
             except ImportError:
                 logger.info("[STEmbedding] sentence_transformers导入失败")
                 raise
             except Exception as e:
                 logger.error("[STEmbedding] 模型加载失败", exc_info=True)
-                raise RuntimeError(f"模型加载失败: {e}") from e
+                if weights_only_override is None:
+                    raise RuntimeError(f"模型加载失败: {e}") from e
+                raise RuntimeError(
+                    f"模型加载失败（weights_only={weights_only_override}）: {e}"
+                ) from e
 
     def _cleanup_resources(self) -> bool:
         """
@@ -208,6 +354,7 @@ class STEmbedding(Star):
                 "type": "STEmbedding",
                 "provider": "Local",
                 "STEmbedding_path": DEFAULT_MODEL_NAME,
+                "STEmbedding_torch_load_weights_only": "auto",
                 "provider_type": "embedding",
                 "enable": True,
                 "embedding_dimensions": 384,
@@ -219,6 +366,10 @@ class STEmbedding(Star):
         try:
             CONFIG_METADATA_2["provider_group"]["metadata"]["provider"]["items"]["STEmbedding_path"] = {
                 "description": "SentenceTransformer 模型路径",
+                "type": "string",
+            }
+            CONFIG_METADATA_2["provider_group"]["metadata"]["provider"]["items"]["STEmbedding_torch_load_weights_only"] = {
+                "description": "torch.load 的 weights_only（auto/true/false）。PyTorch 2.6+ 默认 true，部分旧模型需 false（仅可信模型）",
                 "type": "string",
             }
         except KeyError:
@@ -245,6 +396,7 @@ class STEmbedding(Star):
         try:
             CONFIG_METADATA_2["provider_group"]["metadata"]["provider"]["config_template"].pop("STEmbedding", None)
             CONFIG_METADATA_2["provider_group"]["metadata"]["provider"]["items"].pop("STEmbedding_path", None)
+            CONFIG_METADATA_2["provider_group"]["metadata"]["provider"]["items"].pop("STEmbedding_torch_load_weights_only", None)
         except KeyError:
             pass
 

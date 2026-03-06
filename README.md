@@ -39,6 +39,7 @@ pip install sentence-transformers
             "type": "STEmbedding",
             "provider": "Local",
             "STEmbedding_path": "./paraphrase-multilingual-MiniLM-L12-v2/",
+            "STEmbedding_torch_load_weights_only": "auto",
             "provider_type": "embedding",
             "enable": true,
             "embedding_dimensions": 384
@@ -47,6 +48,10 @@ pip install sentence-transformers
         "items": {
           "STEmbedding_path": {
             "description": "SentenceTransformer模型的路径",
+            "type": "string"
+          },
+          "STEmbedding_torch_load_weights_only": {
+            "description": "torch.load 的 weights_only（auto/true/false）。PyTorch 2.6+ 默认 true，部分旧模型需 false（仅可信模型）",
             "type": "string"
           }
         }
@@ -61,6 +66,7 @@ pip install sentence-transformers
 | 参数名 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `STEmbedding_path` | string | `"./paraphrase-multilingual-MiniLM-L12-v2/"` | Sentence Transformer 模型路径，支持相对路径和绝对路径 |
+| `STEmbedding_torch_load_weights_only` | string | `"auto"` | `torch.load` 的 `weights_only` 行为：`auto/true/false`。PyTorch 2.6+ 若遇到 `Weights only load failed` 可设为 `false`（仅可信模型） |
 | `embedding_dimensions` | integer | `384` | 嵌入向量的维度 |
 | `enable` | boolean | `true` | 是否启用该 provider |
 | `provider_type` | string | `"embedding"` | Provider 类型 |
@@ -121,6 +127,12 @@ pip install sentence-transformers
 - 确认模型文件完整
 - 检查磁盘空间和权限
 
+#### 2.1 PyTorch 2.6 `Weights only load failed`
+当你看到类似错误：`Weights only load failed ... weights_only ...`，说明当前模型权重文件不兼容 PyTorch 2.6 默认的 `weights_only=True` 安全加载。
+
+- 推荐：在 Provider 配置中设置 `STEmbedding_torch_load_weights_only` 为 `false`（仅可信模型）
+- 或者：升级/更换为支持 `safetensors` 的模型与依赖组合
+
 #### 3. 配置未注册
 - 确认插件已正确加载
 - 检查插件初始化日志
@@ -160,8 +172,11 @@ pip install sentence-transformers
 ### v1.2.0
 - 修改卸载参数为异步方法
 
-### v1.2.3 (当前版本)
+### v1.2.3
 - 修改刷新数据库逻辑移动到astrbot初始化后
+
+### v1.2.4 (当前版本)
+- 兼容torch 2.6的weights_only
 
 ## 支持与联系
 
