@@ -187,3 +187,5 @@ pip install sentence-transformers
 
 - [Sentence Transformers](https://www.sbert.net/) - 用于生成嵌入向量
 - [AstrBot](https://github.com/AstrBotDevs/AstrBot) - 提供插件框架
+
+[![Moe Counter](https://count.getloli.com/get/@li-shi-ling?theme=minecraft)](https://github.com/Li-shi-ling/astrbot_plugin_STEmbedding)
